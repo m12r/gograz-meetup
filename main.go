@@ -83,24 +83,18 @@ func (s *server) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	var addr string
-	var apiToken string
 	var urlName string
 	var allowedOrigins []string
 
 	flag.StringVar(&addr, "addr", "127.0.0.1:8080", "Address to listen on")
-	flag.StringVar(&apiToken, "api-token", "", "Meetup.com API token")
 	flag.StringVar(&urlName, "url-name", "Graz-Open-Source-Meetup", "URL name of the meetup group on meetup.com")
 	flag.StringArrayVar(&allowedOrigins, "allowed-origins", []string{"http://localhost:1313", "https://gograz.org"}, "Allowed origin hosts")
 	flag.Parse()
 
-	if apiToken == "" {
-		log.Fatal("No --api-token provided")
-	}
-
 	ch := cache.New(5*time.Minute, 10*time.Minute)
 
 	s := server{
-		client:  meetupcom.NewClient(meetupcom.ClientOptions{APIKey: apiToken}),
+		client:  meetupcom.NewClient(meetupcom.ClientOptions{}),
 		urlName: urlName,
 		cache:   ch,
 	}
