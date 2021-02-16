@@ -3,6 +3,7 @@ module github.com/gograz/gograz-meetup
 go 1.13
 
 require (
+	github.com/magefile/mage v1.11.0
 	github.com/patrickmn/go-cache v2.0.0+incompatible
 	github.com/pressly/chi v3.0.0+incompatible
 	github.com/rs/cors v0.0.0-20170608165155-8dd4211afb5d
