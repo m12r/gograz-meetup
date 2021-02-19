@@ -3,7 +3,7 @@
 This service abstracts the meetup.com API in order to fetch information like
 the number of attendees for each meetup.
 
-## How to Build
+## How to build
 
 This project uses [mage][mage] as a build tool, so you only need [go][go]
 installed on your system.
@@ -23,4 +23,3 @@ go run bootstrap.go -l
 
 [go]: https://go.dev
 [mage]: https://magefile.org
-
