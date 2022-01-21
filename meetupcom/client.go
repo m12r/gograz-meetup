@@ -1,9 +1,11 @@
 package meetupcom
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"net/http"
-	"net/url"
 )
 
 type Client struct {
@@ -18,11 +20,28 @@ func NewClient(opts ClientOptions) *Client {
 	return &c
 }
 
-func (c *Client) executeGet(ctx context.Context, path string, query url.Values) (*http.Response, error) {
-	u := url.URL{Scheme: "https", Host: "api.meetup.com", Path: path, RawQuery: query.Encode()}
-	req := http.Request{
-		Method: http.MethodGet,
-		URL:    &u,
+func (c *Client) executeGraphQLQuery(ctx context.Context, query string, variables map[string]string, output interface{}) error {
+	u := "https://api.meetup.com/gql"
+	body := make(map[string]interface{})
+	body["query"] = query
+	body["variables"] = variables
+	requestBody := bytes.Buffer{}
+
+	if err := json.NewEncoder(&requestBody).Encode(body); err != nil {
+		return err
 	}
-	return http.DefaultClient.Do(req.WithContext(ctx))
+	client := http.Client{}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, u, &requestBody)
+	if err != nil {
+		return err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("query returned unexpected status code %d", resp.StatusCode)
+	}
+	defer resp.Body.Close()
+	return json.NewDecoder(resp.Body).Decode(output)
 }

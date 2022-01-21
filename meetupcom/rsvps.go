@@ -2,42 +2,105 @@ package meetupcom
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/url"
+	"strings"
 )
 
 type MemberPhoto struct {
-	ID          int64
-	HighResLink string `json:"highres_link"`
-	ThumbLink   string `json:"thumb_link"`
-	PhotoLink   string `json:"photo_link"`
+	ID        int64
+	ThumbLink string `json:"thumb_link"`
+	PhotoLink string `json:"photo_link"`
 }
 
 type RSVPsResponseItemMember struct {
-	ID    int64
+	ID    string
 	Name  string
 	Photo MemberPhoto
 }
 
 type RSVPsResponseItem struct {
-	Respone string                  `json:"response"`
-	Member  RSVPsResponseItemMember `json:"member"`
-	Guests  int64                   `json:"guests"`
+	Response string                  `json:"response"`
+	Member   RSVPsResponseItemMember `json:"member"`
+	Guests   int64                   `json:"guests"`
 }
 
 type RSVPsResponse []RSVPsResponseItem
 
+type graphQLResponse struct {
+	Data struct {
+		Event struct {
+			Tickets struct {
+				Count int64 `json:"count"`
+				Edges []struct {
+					Node struct {
+						User struct {
+							ID          string `json:"id"`
+							MemberURL   string `json:"memberUrl"`
+							Name        string `json:"name"`
+							MemberPhoto struct {
+								ID      string `json:"id"`
+								BaseURL string `json:"baseUrl"`
+							} `json:"memberPhoto"`
+						} `json:"user"`
+						GuestsCount int64  `json:"guestsCount"`
+						Status      string `json:"status"`
+					} `json:"node"`
+				} `json:"edges`
+			} `json:"tickets"`
+		} `json:"event"`
+	} `json:"data"`
+}
+
 func (c *Client) GetRSVPs(ctx context.Context, eventID string, urlName string) (*RSVPsResponse, error) {
-	var opts url.Values = make(url.Values)
-	r, err := c.executeGet(ctx, fmt.Sprintf("/%s/events/%s/rsvps", url.PathEscape(urlName), url.PathEscape(eventID)), opts)
-	if err != nil {
+	query := `
+  query($eventID: ID) {
+    event(id: $eventID) {
+      tickets {
+        count
+        edges {
+          node {
+            user {
+							id
+							memberUrl
+              name
+							memberPhoto {
+								baseUrl
+								id
+							}
+            }
+            status
+          }
+        }
+      }
+    }
+  }
+  `
+
+	gr := graphQLResponse{}
+	if err := c.executeGraphQLQuery(ctx, query, map[string]string{"eventID": eventID}, &gr); err != nil {
 		return nil, err
 	}
-	defer r.Body.Close()
 	var resp RSVPsResponse
-	if err := json.NewDecoder(r.Body).Decode(&resp); err != nil {
-		return nil, err
+	for _, ticket := range gr.Data.Event.Tickets.Edges {
+		thumbLink := ""
+		photoLink := ""
+		if ticket.Node.User.MemberPhoto.ID != "0" {
+			thumbLink = fmt.Sprintf("%s%s/40x40.jpg", ticket.Node.User.MemberPhoto.BaseURL, ticket.Node.User.MemberPhoto.ID)
+			photoLink = fmt.Sprintf("%s%s/100x100.jpg", ticket.Node.User.MemberPhoto.BaseURL, ticket.Node.User.MemberPhoto.ID)
+		}
+		resp = append(resp, RSVPsResponseItem{
+			Response: ticket.Node.Status,
+			Member: RSVPsResponseItemMember{
+				Name: ticket.Node.User.Name,
+				ID:   strings.TrimSuffix(ticket.Node.User.ID, "!chp"),
+				Photo: MemberPhoto{
+					ThumbLink: thumbLink,
+					PhotoLink: photoLink,
+				},
+			},
+			Guests: ticket.Node.GuestsCount,
+		})
 	}
+
 	return &resp, nil
 }

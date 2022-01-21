@@ -23,7 +23,7 @@ type server struct {
 }
 
 type attendee struct {
-	ID        int64  `json:"id"`
+	ID        string `json:"id"`
 	Name      string `json:"name"`
 	ThumbLink string `json:"thumbLink"`
 	PhotoLink string `json:"photoLink"`
@@ -47,9 +47,9 @@ func convertRSVPs(in meetupcom.RSVPsResponse) rsvps {
 			PhotoLink: item.Member.Photo.PhotoLink,
 			ThumbLink: item.Member.Photo.ThumbLink,
 		}
-		if item.Respone == "yes" {
+		if item.Response == "YES" {
 			out.Yes = append(out.Yes, m)
-		} else if item.Respone == "no" {
+		} else if item.Response == "NO" {
 			out.No = append(out.No, m)
 		}
 	}
