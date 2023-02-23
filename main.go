@@ -64,7 +64,7 @@ func (s *server) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 	cached, found := s.cache.Get(cacheKey)
 	if found {
 		w.Header().Set("Content-Type", "text/json")
-		json.NewEncoder(w).Encode(convertRSVPs(cached.(meetupcom.RSVPsResponse)))
+		_ = json.NewEncoder(w).Encode(convertRSVPs(cached.(meetupcom.RSVPsResponse)))
 		return
 	}
 
@@ -78,7 +78,7 @@ func (s *server) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 	}
 	s.cache.Set(cacheKey, *rsvps, 0)
 	w.Header().Set("Content-Type", "text/json")
-	json.NewEncoder(w).Encode(convertRSVPs(*rsvps))
+	_ = json.NewEncoder(w).Encode(convertRSVPs(*rsvps))
 }
 
 func main() {
@@ -106,5 +106,5 @@ func main() {
 	})
 	router.Get("/{eventID}/rsvps", s.handleGetRSVPs)
 	log.Infof("Starting HTTPD on %s", addr)
-	http.ListenAndServe(addr, c.Handler(router))
+	_ = http.ListenAndServe(addr, c.Handler(router))
 }

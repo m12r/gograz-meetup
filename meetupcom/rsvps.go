@@ -45,7 +45,7 @@ type graphQLResponse struct {
 						GuestsCount int64  `json:"guestsCount"`
 						Status      string `json:"status"`
 					} `json:"node"`
-				} `json:"edges`
+				} `json:"edges"`
 			} `json:"tickets"`
 		} `json:"event"`
 	} `json:"data"`
