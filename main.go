@@ -7,13 +7,13 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/gograz/gograz-meetup/meetupcom"
+	"github.com/go-chi/chi/v5"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/cors"
+	log "github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 
-	"github.com/pressly/chi"
-	log "github.com/sirupsen/logrus"
+	"github.com/gograz/gograz-meetup/meetupcom"
 )
 
 type server struct {
