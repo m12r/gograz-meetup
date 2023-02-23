@@ -1,4 +1,5 @@
-//+build mage
+//go:build mage
+// +build mage
 
 package main
 
@@ -11,7 +12,10 @@ func Build() error {
 	return sh.RunWith(
 		globalEnv(),
 		"go",
-		"build", "-o", "bin/gograz-meetup",
+		"build",
+		"-trimpath",
+		"-ldflags", "-s -w",
+		"-o", "bin/gograz-meetup",
 	)
 }
 
@@ -22,6 +26,6 @@ func Clean() error {
 
 func globalEnv() map[string]string {
 	return map[string]string{
-		"GO111MODULE": "on",
+		"CGO_ENABLED": "0",
 	}
 }
