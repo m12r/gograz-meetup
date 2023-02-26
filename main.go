@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"embed"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"time"
 
@@ -16,10 +18,14 @@ import (
 	"github.com/gograz/gograz-meetup/meetupcom"
 )
 
+//go:embed templates
+var rootFS embed.FS
+
 type server struct {
-	client  *meetupcom.Client
-	urlName string
-	cache   *cache.Cache
+	client    *meetupcom.Client
+	urlName   string
+	cache     *cache.Cache
+	templates *template.Template
 }
 
 type attendee struct {
@@ -31,8 +37,9 @@ type attendee struct {
 }
 
 type rsvps struct {
-	Yes []attendee `json:"yes"`
-	No  []attendee `json:"no"`
+	EventID string     `json:"-"`
+	Yes     []attendee `json:"yes"`
+	No      []attendee `json:"no"`
 }
 
 func convertRSVPs(in meetupcom.RSVPsResponse) rsvps {
@@ -63,8 +70,7 @@ func (s *server) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 
 	cached, found := s.cache.Get(cacheKey)
 	if found {
-		w.Header().Set("Content-Type", "text/json")
-		_ = json.NewEncoder(w).Encode(convertRSVPs(cached.(meetupcom.RSVPsResponse)))
+		s.encodeRSVPs(w, r, eventID, cached.(meetupcom.RSVPsResponse))
 		return
 	}
 
@@ -77,8 +83,19 @@ func (s *server) handleGetRSVPs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.cache.Set(cacheKey, *rsvps, 0)
+	s.encodeRSVPs(w, r, eventID, *rsvps)
+}
+
+func (s *server) encodeRSVPs(w http.ResponseWriter, r *http.Request, eventID string, in meetupcom.RSVPsResponse) {
+	out := convertRSVPs(in)
+	out.EventID = eventID
+	if r.Header.Get("HX-Request") == "true" {
+		w.Header().Set("Content-Type", "text/html")
+		_ = s.templates.ExecuteTemplate(w, "rsvps.tmpl", out)
+		return
+	}
 	w.Header().Set("Content-Type", "text/json")
-	_ = json.NewEncoder(w).Encode(convertRSVPs(*rsvps))
+	_ = json.NewEncoder(w).Encode(out)
 }
 
 func main() {
@@ -93,16 +110,23 @@ func main() {
 
 	ch := cache.New(5*time.Minute, 10*time.Minute)
 
+	templates, err := template.ParseFS(rootFS, "templates/*.tmpl")
+	if err != nil {
+		log.WithError(err).Fatal("cannot load templates")
+	}
+
 	s := server{
-		client:  meetupcom.NewClient(meetupcom.ClientOptions{}),
-		urlName: urlName,
-		cache:   ch,
+		client:    meetupcom.NewClient(meetupcom.ClientOptions{}),
+		urlName:   urlName,
+		cache:     ch,
+		templates: templates,
 	}
 
 	router := chi.NewRouter()
 	c := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,
+		AllowedHeaders:   []string{"HX-Current-URL", "HX-Request", "HX-Target", "HX-Trigger"},
 	})
 	router.Get("/{eventID}/rsvps", s.handleGetRSVPs)
 	log.Infof("Starting HTTPD on %s", addr)
